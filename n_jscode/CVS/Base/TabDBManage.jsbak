@@ -1,0 +1,461 @@
+////////////////////////////////////////
+//Just display information `s grid, no other opation
+function DisPlayInfoGrid( config ){
+	
+	var self = this;
+	
+	var defconfig = {
+		title					:	'',
+		URL						:	null,
+		strSQL				:	null,
+		colinfo				:	null,
+		loadCount			:	0,
+		recordXMLTag	:	'ITEM',
+		totalXMLTag 	:	'TOTAL',
+		loadSucCallFunc	:	null
+	}
+	
+	Ext.apply( this, defconfig );
+	Ext.apply( this, config );
+	
+	self.cmcfg = new Array();
+	self.storecfg = new Array();
+	self.cmcfg.push(new Ext.grid.RowNumberer( ));
+	
+	initstorecfg( self );	
+		
+	self.grid = new Ext.grid.GridPanel({
+		title						:	self.title,
+		store						: self.store,
+		columns					:	self.cmcfg,
+		autoExpandColumn: self.expandId,
+		autoSizeHeaders	:	true,	
+		singleSelect 		:	true,
+    //bodyStyle			: 'border:0',
+	  loadMask				: true,
+		stripeRows			: true,
+	  trackMouseOver 	: true
+	});
+    	
+	this.load = function( SQL ){
+		var strSQL = "";
+		if( SQL ){
+			strSQL = SQL;
+		}
+		else{
+			strSQL = self.strSQL
+		}
+
+		self.store.load({
+			params	: 	{
+				sql		:	strSQL
+			},
+			callback: 	function(	arrRecord, options, success	){
+				if( success ){  
+					if( self.loadSucCallFunc != null ){
+						self.loadSucCallFunc( arrRecord );
+					}
+				}	
+				else{
+					Ext.Msg.alert( getStr( s_Alert ), getStr( s_DBConnFail ) ); 
+				} 	
+			}
+		});
+	}
+	
+	this.clear = function(){
+		self.store.removeAll();
+	}		
+}
+
+
+
+////////////////////////////////////////
+//
+var gridTH_DBTableCount = [
+    {name: getStr( s_TableName ), 		index:"strTableName",		width: 100,	keyCol: 1 },
+    {name: getStr( s_RecordCount ), 	index:"nCount",				width: 100,	keyCol: 0, expand:1 }
+];
+
+////////////////////////////////////////
+//
+var gridTH_SeverDiskSpace = [
+    {name: getStr( s_DiskPrartition ), 	index:"strDrive",			width: 100,	keyCol: 1 },
+    {name: getStr( s_UseableSpaceMB ),	index:"nUseableSpace",		width: 100,	keyCol: 0, expand:1 }
+];
+
+////////////////////////////////////////
+//
+var gridTH_DBFileStatus = [
+    {name: getStr( s_FileName ), 	index:"name",					width: 130,	keyCol: 1 },
+    {name: getStr( s_SizeMB ), 		index:"size",					width: 70,	keyCol: 0, renderer:function(n){ return n * 8 /1000 } },
+    {name: getStr( s_FileURl ),		index:"filename",				width: 100,	keyCol: 0, expand:1 }
+];
+
+////////////////////////////////////////
+//
+var gridTH_DBConfig = [
+    {name: getStr( s_SaveTrackDay ), 	index:"nSaveTrackDay",		width: 130,	keyCol: 1 },
+    {name: getStr( s_SaveImageURl ), 	index:"strSaveImageURL",	width: 70,	keyCol: 0 },
+    {name: getStr( s_SaveImageCount ),	index:"nSaveImageNumber",	width: 100,	keyCol: 0, expand:1 }
+];
+
+///////////////////////////////////////
+//Display and set DB server info 
+function ServerInfoPanel( config ){
+	
+	var self = this;
+	
+	var defconfig = {
+		title			:	'',
+		URL				:	null,
+		loadCount	:	0
+	}
+	
+	Ext.apply( this, defconfig );
+	Ext.apply( this, config );
+	
+	////////////////////////////////////
+	this.grid_DBTableCount = new DisPlayInfoGrid({
+		title		:	getStr( s_NowDBTableCount ),
+		URL			:	self.URL,
+		strSQL	:	g_SQL.getDBTableCount,
+		colinfo	:	gridTH_DBTableCount
+	});
+	////////////////////////////////////
+	this.grid_DBDiskCount = new DisPlayInfoGrid({
+		title		:	getStr( s_ServerDiskUseSpace ),
+		URL			:	self.URL,
+		strSQL	:	g_SQL.getServerDiskSpace,
+		colinfo	:	gridTH_SeverDiskSpace
+	});
+	////////////////////////////////////
+	this.grid_DBFileCount = new DisPlayInfoGrid({
+		title		:	getStr( s_DBFileStatus ),
+		URL			:	self.URL,
+		strSQL		:	g_SQL.getDBFileSize,
+		colinfo		:	gridTH_DBFileStatus
+	});
+	
+	////////////////////////////////////
+	function writeDBConfigFiled( arrRecord ){
+		var TempSTD = arrRecord[0].get( gridTH_DBConfig[0].index );
+		var TemPSID = arrRecord[0].get( gridTH_DBConfig[1].index );
+		var TemPSIC = arrRecord[0].get( gridTH_DBConfig[2].index );
+		
+		self.text_SaveTrackDay.setValue( TempSTD );
+		self.text_SaveImageURl.setValue( TemPSID );
+		self.text_SaveImageCount.setValue( TemPSIC );
+	}
+	
+	this.grid_DBConfig = new DisPlayInfoGrid({
+		title		:	'',
+		URL			:	self.URL,
+		strSQL		:	g_SQL.getDBConfig,
+		colinfo		:	gridTH_DBConfig,
+		loadSucCallFunc	:	writeDBConfigFiled
+	});
+	
+	this.text_SaveTrackDay = new Ext.form.TextField({ 
+        fieldLabel	: getStr(s_SaveTrackDay), 
+        allowBlank	: false,
+        anchor		: '90%'  
+    });
+    
+    this.text_SaveImageURl = new Ext.form.TextField({ 
+        fieldLabel	: getStr(s_SaveImageURl), 
+        allowBlank	: false,
+        anchor		: '90%'  
+    });
+    
+    this.text_SaveImageCount = new Ext.form.TextField({ 
+        fieldLabel	: getStr(s_SaveImageCount), 
+        allowBlank	: false,
+        anchor		: '90%'  
+    });
+	
+	////////////////////////////////////
+	//leftPanel
+	this.left = new Ext.FormPanel({
+		baseCls		: 	'x-plain',
+		width			:	500,  
+		region		:	'west',
+		layou			:	'form',
+		items			:	[{
+				height	:	150,
+       	layout	:	'border', 
+        items		:	[{
+        		baseCls		: 	'x-plain',
+        		width		:	250,
+        		region	:	'west',
+        		layout	:	'fit',
+						items		:	self.grid_DBTableCount.grid
+        	},{
+        		baseCls	:	'x-plain',
+        		region	:	'center',
+        		layout	:	'fit',
+						items		:	self.grid_DBDiskCount.grid
+        	}
+        ]				
+			},{	
+				baseCls		: 'x-plain',
+        height		:	100,
+        width			:	500,
+        layout		:	'fit',
+				items			:	self.grid_DBFileCount.show()
+			},{
+				baseCls		: 'x-plain',
+				height		:	10
+			},{
+				//baseCls		: 	'x-plain',
+				height		:	35,
+				width		:	500,
+				layout		:	'column',
+				items		:	[
+					{
+						baseCls		: 	'x-plain',
+						columnWidth	:	.40,
+						bodyStyle	: 	'padding:5px 0px 0px 20px;',
+						layout		:	'form',
+						items		:	self.text_SaveTrackDay
+					},{
+						baseCls		: 	'x-plain',
+						columnWidth	:	.30,
+						bodyStyle	: 	'padding:5px 0px 0px 10px;',
+						layout		:	'form',
+						items		:	[{
+							xtype		:	'button',
+							text		:	getStr( s_Modify ),
+							handler		:	function(){
+								Ext.Msg.confirm( 
+									getStr(s_Alert), 
+									getStr( s_Modify ) + getStr(s_SaveTrackDay) + "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;", 
+									function( btn ){
+										if( btn == 'yes' ){
+											self.setSaveTrackDay();	
+										}
+									}
+								);
+							}
+						}]					
+					},{
+						//baseCls		: 	'x-plain',
+						columnWidth	:	.30,
+						bodyStyle	: 	'padding:5px 0px 5px 20px;',
+						layout		:	'form',
+						items		:	[{
+							xtype		:	'button',
+							text		:	getStr( s_NowClearTrackTable ),
+							handler		:	function(){ 
+								Ext.Msg.confirm( 
+									getStr(s_Alert) + "! " + getStr(s_NowClearTrackTable), 
+									getStr( s_NowClearTrackAlert ), 
+									function( btn ){
+										if( btn == 'yes' ){
+											self.setNowClearTarck(); 
+										}
+									}
+								);
+							}
+						}]
+					}
+				]
+			},{
+				baseCls		: 	'x-plain',
+				height		:	10
+			},{
+				height		:	35,
+				width		:	500,
+				layout		:	'column',
+				items		:	[
+					{
+						baseCls		: 	'x-plain',
+						columnWidth	:	.80,
+						bodyStyle	: 	'padding:5px 0px 0px 20px;',
+						layout		:	'form',
+						items		:	self.text_SaveImageURl
+					},{
+						baseCls		: 	'x-plain',
+						columnWidth	:	.10,
+						bodyStyle	: 	'padding:5px 0px 0px 00px;',
+						layout		:	'form',
+						items		:	[{
+							xtype		:	'button',
+							text		:	getStr( s_Modify ),
+							handler		:	function(){ 
+								Ext.Msg.confirm( 
+									getStr(s_Alert), 
+									getStr( s_Modify ) + getStr(s_SaveImageURl) + "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;", 
+									function( btn ){
+										if( btn == 'yes' ){
+											self.setSaveImageURL();	
+										}
+									}
+								);
+							}
+						}]					
+					}
+				]
+			},{
+				baseCls		: 	'x-plain',
+				height		:	10
+			},{
+				height		:	35,
+				width		:	500,
+				layout		:	'column',
+				items		:	[
+					{
+						baseCls		: 	'x-plain',
+						columnWidth	:	.80,
+						bodyStyle	: 	'padding:5px 0px 0px 20px;',
+						layout		:	'form',
+						items		:	self.text_SaveImageCount
+					},{
+						baseCls		: 	'x-plain',
+						columnWidth	:	.10,
+						bodyStyle	: 	'padding:5px 0px 0px 00px;',
+						layout		:	'form',
+						items		:	[{
+							xtype		:	'button',
+							text		:	getStr( s_Modify ),
+							handler		:	function(){ 
+								Ext.Msg.confirm( 
+									getStr(s_Alert), 
+									getStr( s_Modify ) + getStr(s_SaveImageCount) + "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;", 
+									function( btn ){
+										if( btn == 'yes' ){
+											self.setSaveImageCount();
+										}
+									}
+								);	
+							}
+						}]					
+					}
+				]
+			}
+		]	        	
+	});
+	
+	////////////////////////////////////
+	//rightPanel
+	this.right = new Ext.FormPanel({
+		baseCls		: 	'x-plain', 
+		region		: 	'center',
+       	layout		: 	'fit',    
+        items		: 	[
+        	{
+        		html	:	"<iframe width='100%' height='100%' frameborder='no' src='help.html'>"
+        	}
+        ]		
+	});
+	
+	////////////////////////////////////
+	//mainPanel
+	this.mainPanel = new Ext.Panel({
+		baseCls		: 	'x-plain',  
+       	layout		: 	'border',    
+        items		: 	[  self.left, self.right ]		
+	});
+	
+	this.show = function(){
+		return self.mainPanel;
+	}
+	
+	this.load = function(){
+		self.loadCount += 1;
+		self.grid_DBTableCount.load();
+		self.grid_DBDiskCount.load();
+		self.grid_DBFileCount.load();
+		self.grid_DBConfig.load();
+	}
+	
+	this.clear = function(){
+		self.grid_DBTableCount.clear();
+		self.grid_DBDiskCount.clear();
+		self.grid_DBFileCount.clear();
+		self.grid_DBConfig.clear();	
+		self.text_SaveTrackDay.setValue( '' );
+		self.text_SaveImageURl.setValue( '' );
+		self.text_SaveImageCount.setValue( '' );
+	}
+	
+	this.refresh = function(){
+		self.clear();
+		self.load();
+	}
+	
+	this.setSaveTrackDay = function(){
+		var Day = self.text_SaveTrackDay.getValue();
+		if( Day.length < 1 ){
+			return;
+		}
+		waiting();
+		sysLog.add( getStr(s_SaveTrackDay) + getStr( s_Modify ) + ": " + Day );
+		
+		var strSQL = g_SQL.setSaveTrackDay + Day;
+    	Ajax( 	strSQL,
+    		  	function(){
+    		  		wait_end();
+    		  		sysLog.add( getStr( s_Modify ) + getStr( s_SaveTrackDay ) +" " + Day + " " + getStr( s_Success ) );
+    			},
+    			function(){},
+    			g_ModifyDataURL
+    	);		
+	}
+	
+	this.setNowClearTarck = function(){
+		var Day = self.text_SaveTrackDay.getValue();
+		if( Day.length < 1 ){
+			return;
+		}
+		waiting();
+		sysLog.add( getStr(s_NowClearTrackTable) + getStr( s_Save ) + ": " + Day );
+    	Ajax( 	g_SQL.nowClearTrackTable,
+    		  	function(){
+    		  		wait_end();
+    		  		sysLog.add( getStr( s_NowClearTrackTable ) + getStr( s_Save ) + ": " + Day + " " + getStr( s_Success ) );
+    			},
+    			function(){},
+    			g_ModifyDataURL
+    	);
+	}
+	
+	this.setSaveImageURL = function(){
+		var URL = self.text_SaveImageURl.getValue();
+		if( URL.length < 1 ){
+			return;
+		}
+		waiting();
+		sysLog.add( getStr(s_SaveImageURl) + getStr( s_Modify ) + ": " + URL );
+		
+		var strSQL = g_SQL.setSaveImageURL + "'" + URL + "'";
+
+    	Ajax( 	strSQL,
+    		  	function(){
+    		  		wait_end();
+    		  		sysLog.add( getStr( s_Modify ) + getStr( s_SaveImageURl ) +" " + URL + " " + getStr( s_Success ) );
+    			},
+    			function(){}
+    			g_ModifyDataURL
+    	);
+	}
+	
+	this.setSaveImageCount = function(){
+		var Count = self.text_SaveImageCount.getValue();
+		if( Count.length < 1 ){
+			return;
+		}
+				waiting();
+		sysLog.add( getStr(s_SaveImageCount) + getStr( s_Modify ) + ": " + Count );
+		
+		var strSQL = g_SQL.setSaveImageNumber + Count;
+    	Ajax( 	strSQL,
+    		  	function(){
+    		  		wait_end();
+    		  		sysLog.add( getStr( s_Modify ) + getStr( s_SaveImageCount ) +" " + Count + " " + getStr( s_Success ) );
+    			},
+    			function(){},
+    			g_ModifyDataURL
+    	);
+	}
+}
